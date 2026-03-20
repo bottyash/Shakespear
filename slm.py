@@ -16,3 +16,11 @@ def create_shakespeare_model(vocab):
     model['word_count'] = Counter(vocab)
     model['most_common'] = model['word_count'].most_common(100)
     return model
+
+def generate_shakespeare_response(model, seed_word="the"):
+    response = [seed_word]
+    for _ in range(5):
+        next_word = random.choice(model['most_common'])
+        response.append(next_word)
+    
+    return " ".join(response).capitalize()
