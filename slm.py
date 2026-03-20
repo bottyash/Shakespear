@@ -10,25 +10,18 @@ def build_vocabulary(text): #Building vocab
     vocab = list(set(words))
     return vocab
 
-def create_model(vocab): #a tiny nn model of 2 layer
+def create_model(text): #a tiny nn model of 2 layer
+    words = tokenize(text)
     model = {}
-    model['vocab'] = vocab
-    model['word_count'] = Counter(vocab)
+    model['vocab'] = list(set(words))
+    model['word_count'] = Counter(words)
     model['most_common'] = model['word_count'].most_common(100)
     return model
 
 def generate_response(model, seed_word="the"): #Generate responses
     response = [seed_word] # Start with seed word
     for _ in range(15): # Generate 15 words of text
-        next_word = random.choice(model['most_common']) # Get next word from model in shakespear style
-        response.append(next_word)
-    
-    return " ".join(response).capitalize()
-
-def generate_response(model, seed_word="the"):
-    response = [seed_word]
-    for _ in range(15):
-        next_word = random.choice(model['most_common'])
+        next_word = random.choice(model['most_common'])[0] # Get next word from model in shakespear style
         response.append(next_word)
     
     return " ".join(response).capitalize()
@@ -50,5 +43,4 @@ def cli_chat():
 if __name__ == "__main__":
     with open("text.txt", "r") as f:
         text = f.read()
-    
     cli_chat()
