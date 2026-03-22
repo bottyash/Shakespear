@@ -1,14 +1,6 @@
 import random
 from collections import Counter
 
-TONE_WORDS = {
-    "angry":    ["rage", "fury", "hate", "wrath", "villain", "curse", "blood", "die", "kill", "foul"],
-    "sad":      ["grief", "sorrow", "weep", "mourn", "loss", "dead", "tears", "alone", "despair", "poor"],
-    "romantic": ["love", "heart", "sweet", "beauty", "kiss", "dear", "gentle", "fair", "soul", "tender"],
-    "question": ["why", "what", "who", "where", "when", "how", "dost", "canst", "wouldst", "art"],
-    "neutral":  []
-} #some predefined tones that i recognise
-
 #Cleaning and tokenizing Shakespeare text
 def tokenize_shakespeare(text):
     words = [word.lower() for word in text.split() if len(word) > 2]
@@ -29,69 +21,43 @@ def create_shakespeare_model(vocab):
     model['most_common'] = model['word_count'].most_common(100)
     return model
 
-def build_trigram_map(words):
-    trigrams = {}
-    for i in range(len(words) - 2):
-        key = (words[i], words[i + 1])
-        if key not in trigrams:
-            trigrams[key] = []
-        trigrams[key].append(words[i + 2])
-    return trigrams
+def build_bigram_map(words):
+    pairs = {}
+    for i in range(len(words) - 1):
+        w = words[i]
+        if w not in pairs:
+            pairs[w] = []
+        pairs[w].append(words[i + 1])
+    return pairs
 
-#detect tone from user input
-def detect_tone(user_input):
-    words = set(user_input.lower().split())
-    for tone, keywords in TONE_WORDS.items():
-        if words & set(keywords):
-            return tone
-    if "?" in user_input:
-        return "question"
-    return "neutral"
-
-#find best seed key based on tone then user words
-def find_seed(user_input, trigrams, tone):
-    user_words = user_input.lower().split()
-    tone_keywords = TONE_WORDS.get(tone, [])
-    for word in tone_keywords:
-        matches = [k for k in trigrams if k[0] == word]
-        if matches:
-            return random.choice(matches)
-    for word in user_words:
-        matches = [k for k in trigrams if k[0] == word]
-        if matches:
-            return random.choice(matches)
-    return random.choice(list(trigrams.keys()))
-
-#vary length based on how much the user typed
-def response_length(user_input):
-    word_count = len(user_input.split())
-    if word_count <= 3:
-        return 8
-    elif word_count <= 7:
-        return 15
-    else:
-        return 22
-
-#Generate Shakespearean responses
-def generate_response(trigrams, seed_key, length):
-    result = list(seed_key)
-    key = seed_key
-    for _ in range(length - 2):
-        choices = trigrams.get(key)
+def generate_response(pairs, seed, length=12):
+    if seed not in pairs:
+        seed = random.choice(list(pairs.keys()))
+    result = [seed]
+    for _ in range(length - 1):
+        choices = pairs.get(result[-1])
         if not choices:
             break
-        next_word = random.choice(choices)
-        result.append(next_word)
-        key = (key[1], next_word)
+        result.append(random.choice(choices))
     return " ".join(result).capitalize() + "."
+
+#Generate Shakespearean responses
+def generate_shakespeare_response(model, seed_word="the"):
+    # Start with Shakespear seed word
+    response = [seed_word]
+    
+    # Generate 5 10 words of Shakespeare text
+    for _ in range(5):
+        # Get next word from model shakespear style
+        next_word = random.choice(model['most_common'])
+        response.append(next_word)
+    
+    return " ".join(response).capitalize()
 
 def shakespeare_chat():
     print("Welcome to the Shakespearean Chatbot!")
     print("Type 'exit' to quit. Type 'help' for commands.")
-
-    words = tokenize_shakespeare(shakespeare_text)
-    trigrams = build_trigram_map(words)
-
+    
     while True:
         user_input = input("\nYou: ").strip().lower()
         if user_input == "exit":
@@ -99,10 +65,10 @@ def shakespeare_chat():
             break
         else:
             # Generate response
-            tone = detect_tone(user_input)
-            seed = find_seed(user_input, trigrams, tone)
-            length = response_length(user_input)
-            response = generate_response(trigrams, seed, length)
+            words = tokenize_shakespeare(shakespeare_text)
+            pairs = build_bigram_map(words)
+            seed = user_input.split()[0]
+            response = generate_response(pairs, seed)
             print(f"\nShakespeare: {response}")
 
 if __name__ == "__main__":
