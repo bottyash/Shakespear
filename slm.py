@@ -124,6 +124,8 @@ def generate_transformer_response(user_input, history, lines, params, w2i, i2w, 
 
     #encode
     prompt_ids = [w2i.get(w, 0) for w in prompt_words][-CTX_LEN:]
+    if not prompt_ids:
+        prompt_ids = [0]  # fallback to <unk> token
 
     # generate
     output_ids = generate(prompt_ids, params, N_HEADS, CTX_LEN, length)

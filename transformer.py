@@ -157,7 +157,7 @@ def load_weights(path, n_layers):
 def generate(prompt_ids, params, n_heads, ctx_len, length, temperature=0.8):
     result = list(prompt_ids)
     for _ in range(length):
-        ctx = np.array(result[-ctx_len:])[None, :]
+        ctx = np.array(result[-ctx_len:], dtype=np.int64)[None, :]
         logits = forward(ctx, params, n_heads, ctx_len)
         logits = logits[0, -1] / temperature
         probs = softmax(logits)

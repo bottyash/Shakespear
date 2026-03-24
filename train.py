@@ -88,7 +88,7 @@ def train(text):
 
                 flat_ids = xs.reshape(B * T)
                 grad = np.zeros_like(params['embed'])
-                np.add.at(grad, flat_ids, dlogits @ params['embed'].T)
+                np.add.at(grad, flat_ids, dlogits @ params['embed'])
                 params['embed'] -= LR * grad
 
                 if batches % 100 == 0:

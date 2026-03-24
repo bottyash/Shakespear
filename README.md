@@ -9,7 +9,7 @@ A simple Python chatbot that responds using Shakespeare's work as its source tex
 - Generates somewhat gibberish but you get the point...
 
 ## Version 1: Random Model
-The original. Builds a vocabulary from the text and picks the next word randomly from the top 100 most common words. No context, no flow — purely frequency based.
+Builds a vocabulary from the text and picks the next word randomly from the top 100 most common words. No context, no flow — purely frequency based.
  
 **Key functions:** `tokenize_shakespeare`, `build_vocabulary`, `create_shakespeare_model`, `generate_shakespeare_response`
  
