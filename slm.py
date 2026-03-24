@@ -1,5 +1,8 @@
 import random
+import numpy as np
 from collections import Counter
+from transformer import build_vocab, load_weights, generate, init_weights, save_weights, forward, softmax
+from train import train, tokenize, CTX_LEN, N_HEADS, VOCAB_SIZE, EMBED_DIM, N_HEADS, N_LAYERS, FFN_DIM, WEIGHTS
 
 TONE_WORDS = {
     "angry":    ["rage", "fury", "hate", "wrath", "villain", "curse", "blood", "die", "kill", "foul"],
@@ -7,13 +10,15 @@ TONE_WORDS = {
     "romantic": ["love", "heart", "sweet", "beauty", "kiss", "dear", "gentle", "fair", "soul", "tender"],
     "question": ["why", "what", "who", "where", "when", "how", "dost", "canst", "wouldst", "art"],
     "neutral":  []
-} 
-def tokenize_shakespeare(text): #Cleaning and tokenizing Shakespeare text
+}
+
+#Cleaning and tokenizing Shakespeare text
+def tokenize_shakespeare(text):
     words = [word.lower() for word in text.split() if len(word) > 2]
     return words
 
-
-def build_vocabulary(text): #Building vocab
+#Building vocab
+def build_vocabulary(text):
     words = tokenize_shakespeare(text)
     vocab = list(set(words))
     return vocab
@@ -27,7 +32,7 @@ def create_shakespeare_model(vocab):
     model['most_common'] = model['word_count'].most_common(100)
     return model
 
-def build_trigram_map(words): #trigram map
+def build_trigram_map(words):
     trigrams = {}
     for i in range(len(words) - 2):
         key = (words[i], words[i + 1])
@@ -70,8 +75,8 @@ def response_length(user_input):
     else:
         return 22
 
-#Generate Shakespearean responses
-def generate_response(trigrams, seed_key, length):
+#Generate Shakespearean responses using trigrams
+def generate_trigram_response(trigrams, seed_key, length):
     result = list(seed_key)
     key = seed_key
     for _ in range(length - 2):
@@ -83,12 +88,65 @@ def generate_response(trigrams, seed_key, length):
         key = (key[1], next_word)
     return " ".join(result).capitalize() + "."
 
+#Generate Shakespearean responses (original)
+def generate_shakespeare_response(model, seed_word="the"):
+    # Start with Shakespear seed word
+    response = [seed_word]
+    # Generate 5 10 words of Shakespeare text
+    for _ in range(5):
+        # Get next word from model shakespear style
+        next_word = random.choice(model['most_common'])
+        response.append(next_word)
+    return " ".join(response).capitalize()
+
+# --- RAG: retrieve top N relevant lines from Shakespeare text ---
+def retrieve_context(user_input, lines, top_n=3):
+    user_words = set(user_input.lower().split())
+    scored = []
+    for line in lines:
+        line_words = set(line.lower().split())
+        score = len(user_words & line_words)
+        if score > 0:
+            scored.append((score, line.strip()))
+    scored.sort(reverse=True)
+    return [line for _, line in scored[:top_n]]
+
+# --- Transformer response with RAG context + conversation history ---
+def generate_transformer_response(user_input, history, lines, params, w2i, i2w, length=20):
+    # RAG: pull relevant context from text
+    context_lines = retrieve_context(user_input, lines)
+    context_str = " ".join(context_lines)
+
+    # build prompt: history + rag context + user input
+    history_str = " ".join(history[-4:])  # last 4 turns
+    prompt = f"{history_str} {context_str} {user_input}".strip()
+    prompt_words = tokenize(prompt)
+
+    # encode
+    prompt_ids = [w2i.get(w, 0) for w in prompt_words][-CTX_LEN:]
+
+    # generate
+    output_ids = generate(prompt_ids, params, N_HEADS, CTX_LEN, length)
+    output_words = [i2w.get(i, '') for i in output_ids[len(prompt_ids):]]
+    return " ".join(output_words).capitalize() + "."
+
 def shakespeare_chat():
     print("Welcome to the Shakespearean Chatbot!")
     print("Type 'exit' to quit. Type 'help' for commands.")
+    print("Training / loading transformer...\n")
 
+    # train or load transformer
+    params, w2i, i2w = train(shakespeare_text)
+
+    # trigram setup
     words = tokenize_shakespeare(shakespeare_text)
     trigrams = build_trigram_map(words)
+
+    # RAG: split text into lines
+    lines = [l for l in shakespeare_text.split('\n') if len(l.strip()) > 10]
+
+    # conversation history
+    history = []
 
     while True:
         user_input = input("\nYou: ").strip().lower()
@@ -98,15 +156,28 @@ def shakespeare_chat():
         elif user_input == "help":
             print("Commands: 'exit' to quit, 'help' for commands")
         else:
-            # Generate response
             tone = detect_tone(user_input)
-            seed = find_seed(user_input, trigrams, tone)
             length = response_length(user_input)
-            response = generate_response(trigrams, seed, length)
+
+            # trigram response as seed
+            seed = find_seed(user_input, trigrams, tone)
+            trigram_resp = generate_trigram_response(trigrams, seed, length)
+
+            # transformer response with RAG + history
+            transformer_resp = generate_transformer_response(
+                user_input, history, lines, params, w2i, i2w, length
+            )
+
+            # use transformer if it produced something meaningful, else fall back to trigram
+            response = transformer_resp if len(transformer_resp.split()) > 4 else trigram_resp
+
+            history.append(user_input)
+            history.append(response)
+
             print(f"\nShakespeare: {response}")
 
 if __name__ == "__main__":
     with open("text.txt", "r") as f:
         shakespeare_text = f.read()
-    
+
     shakespeare_chat()
