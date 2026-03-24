@@ -99,7 +99,7 @@ def generate_shakespeare_response(model, seed_word="the"):
         response.append(next_word)
     return " ".join(response).capitalize()
 
-# --- RAG: retrieve top N relevant lines from Shakespeare text ---
+#RAG: retrieve top N relevant lines from Shakespeare text ---
 def retrieve_context(user_input, lines, top_n=3):
     user_words = set(user_input.lower().split())
     scored = []
@@ -111,18 +111,18 @@ def retrieve_context(user_input, lines, top_n=3):
     scored.sort(reverse=True)
     return [line for _, line in scored[:top_n]]
 
-# --- Transformer response with RAG context + conversation history ---
+#Transformer response with RAG context + convo history
 def generate_transformer_response(user_input, history, lines, params, w2i, i2w, length=20):
     # RAG: pull relevant context from text
     context_lines = retrieve_context(user_input, lines)
     context_str = " ".join(context_lines)
 
-    # build prompt: history + rag context + user input
+    #build prompt: history + rag context + user input
     history_str = " ".join(history[-4:])  # last 4 turns
     prompt = f"{history_str} {context_str} {user_input}".strip()
     prompt_words = tokenize(prompt)
 
-    # encode
+    #encode
     prompt_ids = [w2i.get(w, 0) for w in prompt_words][-CTX_LEN:]
 
     # generate
@@ -135,17 +135,17 @@ def shakespeare_chat():
     print("Type 'exit' to quit. Type 'help' for commands.")
     print("Training / loading transformer...\n")
 
-    # train or load transformer
+    #train /load transformer
     params, w2i, i2w = train(shakespeare_text)
 
-    # trigram setup
+    #trigram setup
     words = tokenize_shakespeare(shakespeare_text)
     trigrams = build_trigram_map(words)
 
-    # RAG: split text into lines
+    #RAG: split text into lines
     lines = [l for l in shakespeare_text.split('\n') if len(l.strip()) > 10]
 
-    # conversation history
+    # convo history
     history = []
 
     while True:
@@ -159,16 +159,16 @@ def shakespeare_chat():
             tone = detect_tone(user_input)
             length = response_length(user_input)
 
-            # trigram response as seed
+            #trigram response as seed
             seed = find_seed(user_input, trigrams, tone)
             trigram_resp = generate_trigram_response(trigrams, seed, length)
 
-            # transformer response with RAG + history
+            #transformer response with RAG + history
             transformer_resp = generate_transformer_response(
                 user_input, history, lines, params, w2i, i2w, length
             )
 
-            # use transformer if it produced something meaningful, else fall back to trigram
+            #use transformer if it produced something meaningful, else fall back to trigram
             response = transformer_resp if len(transformer_resp.split()) > 4 else trigram_resp
 
             history.append(user_input)
