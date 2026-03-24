@@ -31,3 +31,28 @@ Upgraded bigrams to trigrams (2-word context window) and added tone detection an
  
 **Result:** responses feel contextually steered by what the user typed, not just random walks through the text.
  
+## Version 4 — Transformer + RAG + Conversation History
+Built a small transformer from scratch using NumPy only and wired it on top of the trigram bot.
+ 
+**New files:**
+- `transformer.py` — the model. Embeddings, positional encoding, multi-head self-attention, layer norm, FFN, generation
+- `train.py` — trains on the Shakespeare data, saves weights to `weights.npz`. Loads from file on every run after the first
+ 
+**What changed in `slm.py`:**
+- `retrieve_context` — RAG: scores every line in the text by keyword overlap with user input, pulls top 3 most relevant lines as context
+- `generate_transformer_response` — builds a prompt from conversation history + RAG context + user input, runs it through the transformer
+- Trigram bot stays as fallback if transformer output is too short or empty
+- Conversation history tracked across turns and passed into every prompt
+ 
+**Architecture:**
+- Vocab: top 5000 words
+- Embedding dim: 64
+- Attention heads: 4
+- Layers: 2
+- FFN hidden: 128
+- Context window: 16 tokens
+ 
+**First run:** trains for ~10-30 minutes and saves `weights.npz`
+**Every run after:** loads weights instantly and starts chatting
+ 
+**Result:** context-aware responses grounded in relevant Shakespeare text, with memory of the current conversation.
